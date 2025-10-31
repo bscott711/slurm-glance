@@ -6,8 +6,8 @@ app = Flask(__name__)
 
 def get_cluster_data(host_name):
     """
-    Connects to the specified HPC host via SSH and fetches data,
-    relying on the ~/.ssh/config for connection parameters.
+    Connects to the specified HPC host via SSH, fetches data,
+    and relies on the ~/.ssh/config for connection parameters.
     """
     print(f"Connecting to host alias: {host_name} (using ~/.ssh/config)...")
     try:

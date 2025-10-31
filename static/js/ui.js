@@ -23,16 +23,17 @@ export function renderAll(state) {
 // --- Individual Component Renders ---
 
 export function renderQueueSummary(summaryData) {
-    const { pendingJobCount, uniqueUserCount, userJobCounts } = summaryData;
+    const { runningJobCount, pendingJobCount, uniqueUserCount, userJobCounts, userJobCountsByPartition } = summaryData;
 
-    // 1. Render stat cards
-    let html = '<div class="summary-grid">';
+    // 1. Render stat cards (UPDATED grid-template-columns)
+    let html = '<div class="summary-grid">'; // CSS rule handles the 3-col layout
+    html += `<div class="stat-card"><h3>Running Jobs</h3><div class="stat-value">${runningJobCount}</div></div>`;
     html += `<div class="stat-card"><h3>Pending Jobs</h3><div class="stat-value">${pendingJobCount}</div></div>`;
     html += `<div class="stat-card"><h3>Unique Users</h3><div class="stat-value">${uniqueUserCount}</div></div>`;
     html += '</div>';
 
-    // 2. Render user table
-    html += '<h3>Jobs Per User (Top 10)</h3>';
+    // 2. Render user table (Total)
+    html += '<h3>Jobs Per User (All Partitions)</h3>';
     html += '<table class="user-job-table"><thead><tr><th>User</th><th>Job Count</th></tr></thead><tbody>';
     
     if (userJobCounts.length === 0) {
@@ -44,6 +45,28 @@ export function renderQueueSummary(summaryData) {
         }
     }
     html += '</tbody></table>';
+
+    // 3. NEW: Render per-partition user tables
+    html += '<h3>Jobs Per User (By Partition)</h3>';
+    
+    // Sort partitions by name for consistent order
+    const sortedPartitions = Object.keys(userJobCountsByPartition).sort();
+
+    if (sortedPartitions.length === 0) {
+        html += '<p style="font-style: italic; text-align: center;">No jobs to display by partition.</p>';
+    }
+
+    for (const partition of sortedPartitions) {
+        const userList = userJobCountsByPartition[partition];
+        html += `<h4>Partition: ${partition}</h4>`;
+        html += '<table class="user-job-table"><thead><tr><th>User</th><th>Job Count</th></tr></thead><tbody>';
+        
+        const topUsers = userList.slice(0, 10);
+        for (const item of topUsers) {
+            html += `<tr><td>${item.user}</td><td>${item.count}</td></tr>`;
+        }
+        html += '</tbody></table>';
+    }
     
     summaryContainer.innerHTML = html;
 }
@@ -59,19 +82,44 @@ export function renderSinfo(partitions) {
     tableHtml += '</tr></thead><tbody>';
     for (const group of partitions) {
         const part_name = group.partition.name;
-        const state = group.node.state[0];
+        // Use the new helper function to get the most important state
+        const state = getPriorityNodeState(group.node.state);
         const count = group.nodes.total;
+        
         if (count === 0) continue;
+        
         let stateHtml = state;
         if (state.includes('IDLE')) stateHtml = `<span class="status-pending">${state}</span>`;
         if (state.includes('ALLOCATED')) stateHtml = `<span class="status-running">${state}</span>`;
         if (state.includes('MIXED')) stateHtml = `<span class="status-running">${state}</span>`;
         if (state.includes('DOWN')) stateHtml = `<span class="status-error">${state}</span>`;
         if (state.includes('DRAIN')) stateHtml = `<span class="status-error">${state}</span>`;
+        if (state.includes('RESV')) stateHtml = `<span class="status-pending">${state}</span>`;
+            
         tableHtml += `<tr><td>${part_name}</td><td>${stateHtml}</td><td>${count}</td></tr>`;
     }
     tableHtml += '</tbody></table>';
     sinfoContainer.innerHTML = tableHtml;
+}
+
+/**
+ * Finds the most "important" state from a state array.
+ * e.g., ["IDLE", "DRAIN"] should be reported as "DRAIN".
+ */
+function getPriorityNodeState(stateArray) {
+    const state = (stateArray[0] || "UNKNOWN").toUpperCase();
+    
+    // Define a priority order
+    const priorities = ["DOWN", "DRAIN", "RESV", "MIXED", "ALLOCATED"];
+
+    // Check for a higher-priority modifying state
+    for (const priorityState of priorities) {
+        if (stateArray.includes(priorityState)) {
+            return priorityState;
+        }
+    }
+    // Otherwise, return the base state
+    return state;
 }
 
 export function renderSqueue(state) {
