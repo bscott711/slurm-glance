@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>slurm-glance: {{ hpc_host_name }}</title>
+    
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body data-host="{{ hpc_host_name }}">
@@ -16,10 +17,13 @@
     
     <button id="refresh-btn" class="refresh-button">Refresh Data</button>
 
+    <h2>Queue Summary</h2>
+    <div id="queue-summary-container"></div>
+
     <h2>Node Summary</h2>
     <div id="sinfo-container"></div>
     
-    <div class="job-queue-header">
+    <div id="job-queue-header" class="job-queue-header">
         <h2>Job Queue</h2>
         <input type="text" id="filter-input" placeholder="Filter jobs by user, name, partition...">
     </div>

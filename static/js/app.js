@@ -8,15 +8,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusContainer = document.getElementById('status-container');
     const refreshButton = document.getElementById('refresh-btn');
     const filterInput = document.getElementById('filter-input');
+    const summaryContainer = document.getElementById('queue-summary-container'); // New
 
     // --- Application State ---
-    let fullJobList = [];
-    let fullPartitionList = [];
-    let lastUpdateTime = 0;
+    // All data is stored here after being fetched
     let appState = {
         filterText: '',
         sortKey: 'job_id',
-        sortDir: 'asc'
+        sortDir: 'asc',
+        
+        fullJobList: [],
+        fullPartitionList: [],
+        
+        // New summary data
+        pendingJobCount: 0,
+        uniqueUserCount: 0,
+        userJobCounts: []
     };
 
     /**
@@ -25,7 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function formatTime(totalSeconds) {
         let secondsNum = parseInt(totalSeconds, 10);
         if (isNaN(secondsNum) || secondsNum <= 0) {
-            return '00:00:00';
+            // Handle 0 or infinite time limits
+            if (secondsNum === 0) return '00:00:00';
+            return 'Infinite';
         }
         const days = Math.floor(secondsNum / 86400);
         secondsNum %= 86400;
@@ -42,22 +51,48 @@ document.addEventListener('DOMContentLoaded', () => {
         return timeString;
     }
 
+    // --- NEW Render Function for Summary Data ---
+    function renderQueueSummary() {
+        // 1. Render stat cards
+        let html = '<div class="summary-grid">';
+        html += `<div class="stat-card"><h3>Pending Jobs</h3><div class="stat-value">${appState.pendingJobCount}</div></div>`;
+        html += `<div class="stat-card"><h3>Unique Users</h3><div class="stat-value">${appState.uniqueUserCount}</div></div>`;
+        html += '</div>';
+
+        // 2. Render user table
+        html += '<h3>Jobs Per User (Top 10)</h3>';
+        html += '<table class="user-job-table"><thead><tr><th>User</th><th>Job Count</th></tr></thead><tbody>';
+        
+        if (appState.userJobCounts.length === 0) {
+             html += '<tr><td colspan="2" style="text-align: center; font-style: italic;">No users in queue.</td></tr>';
+        } else {
+            // Show only top 10
+            const topUsers = appState.userJobCounts.slice(0, 10);
+            for (const item of topUsers) {
+                html += `<tr><td>${item.user}</td><td>${item.count}</td></tr>`;
+            }
+        }
+        html += '</tbody></table>';
+        
+        summaryContainer.innerHTML = html;
+    }
+
     /**
      * Renders the Job Queue (squeue) table
      */
     function renderSqueue(jobs) {
         
-        // Headers are needed in both cases (empty or full)
         const headers = [
             { key: 'job_id', name: 'Job ID' },
             { key: 'user_name', name: 'User' },
             { key: 'job_state', name: 'State' },
             { key: 'partition', name: 'Partition' },
             { key: 'name', name: 'Name' },
-            { key: 'time', name: 'Time' }
+            { key: 'time', name: 'Time Used' },
+            { key: 'time_limit_sec', name: 'Time Limit' },
+            { key: 'time_left', name: 'Time Left' }
         ];
 
-        // --- FIX 1: Add class="job-table" for the CSS ---
         let tableHtml = '<table class="job-table"><thead><tr>';
         headers.forEach(h => {
             const sortDir = (h.key === appState.sortKey) ? `data-sort-dir="${appState.sortDir}"` : '';
@@ -65,16 +100,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         tableHtml += '</tr></thead><tbody>';
 
-        // --- FIX 2: Updated empty table logic ---
         if (!jobs || jobs.length === 0) {
             tableHtml += '<tr>';
-            // Add a single cell that spans all columns
             tableHtml += `<td colspan="${headers.length}" style="text-align: center; padding: 20px; font-style: italic;">`;
-            // Show a different message if filtering
             tableHtml += (appState.filterText) ? 'No jobs match the filter.' : 'No jobs in the queue.';
             tableHtml += '</td></tr>';
         } else {
-            // This is the existing loop to populate jobs
             for (const job of jobs) {
                 tableHtml += '<tr>';
                 const jobState = job.job_state[0] || 'UNKNOWN';
@@ -88,11 +119,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 tableHtml += `<td>${job.partition}</td>`;
                 tableHtml += `<td>${job.name}</td>`;
+                
+                // Add new time columns
                 tableHtml += `<td>${formatTime(job.time)}</td>`;
+                tableHtml += `<td>${formatTime(job.time_limit_sec)}</td>`;
+                tableHtml += `<td>${(jobState === 'RUNNING') ? formatTime(job.time_left) : '-'}</td>`;
+                
                 tableHtml += '</tr>';
             }
         }
-        // --- END FIX 2 ---
 
         tableHtml += '</tbody></table>';
         squeueContainer.innerHTML = tableHtml;
@@ -101,7 +136,8 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Renders the Node Summary (sinfo) table
      */
-    function renderSinfo(partitions) {
+    function renderSinfo() {
+        const partitions = appState.fullPartitionList;
         if (!partitions || partitions.length === 0) {
             sinfoContainer.innerHTML = "<p>No node information available.</p>";
             return;
@@ -129,14 +165,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * This is the main render function.
-     * It applies filters and sorting before calling renderSqueue.
+     * It calls all individual render functions based on the appState.
      */
     function renderApp() {
+        // --- 1. Apply Filtering to Job List ---
         const filterText = appState.filterText.toLowerCase();
-        let filteredJobs = fullJobList;
+        let filteredJobs = appState.fullJobList;
 
         if (filterText) {
-            filteredJobs = fullJobList.filter(job => {
+            filteredJobs = appState.fullJobList.filter(job => {
                 return (
                     job.user_name.toLowerCase().includes(filterText) ||
                     job.name.toLowerCase().includes(filterText) ||
@@ -146,6 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        // --- 2. Apply Sorting to Filtered List ---
         const key = appState.sortKey;
         const dir = appState.sortDir === 'asc' ? 1 : -1;
 
@@ -157,15 +195,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return 0;
         });
 
-        // We pass the processed list to the render function
+        // --- 3. Call all render functions ---
+        renderQueueSummary();
+        renderSinfo();
         renderSqueue(filteredJobs);
-        
-        // Node summary doesn't need filtering/sorting
-        renderSinfo(fullPartitionList);
     }
 
     /**
-     * Main function to fetch and orchestrate rendering
+     * Main function to fetch data and update appState
      */
     async function fetchData() {
         refreshButton.disabled = true;
@@ -179,20 +216,51 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             if (data.status === 'error') throw new Error(`Server error: ${data.message}`);
 
-            lastUpdateTime = data.squeue.last_update.number;
-            fullPartitionList = data.sinfo.sinfo;
+            const lastUpdateTime = data.squeue.last_update.number;
             
-            fullJobList = data.squeue.jobs.map(job => {
+            // --- Update appState with all new data ---
+            appState.fullPartitionList = data.sinfo.sinfo;
+            
+            appState.fullJobList = data.squeue.jobs.map(job => {
                 const jobState = job.job_state[0] || 'UNKNOWN';
-                let timeValue = 0;
+                let timeUsed = 0;
                 if (jobState === 'RUNNING') {
-                    timeValue = lastUpdateTime - job.start_time.number;
+                    timeUsed = lastUpdateTime - job.start_time.number;
                 } else if (jobState === 'PENDING') {
-                    timeValue = lastUpdateTime - job.submit_time.number;
+                    timeUsed = lastUpdateTime - job.submit_time.number;
                 }
-                return { ...job, time: timeValue }; 
+                
+                // time_limit.number is in MINUTES. 0 means infinite.
+                const timeLimitInMin = (job.time_limit && job.time_limit.number) ? job.time_limit.number : -1;
+                const timeLimitInSec = timeLimitInMin * 60;
+                
+                let timeLeft = 0;
+                if (jobState === 'RUNNING' && timeLimitInMin > 0) {
+                    timeLeft = timeLimitInSec - timeUsed;
+                } else if (timeLimitInMin < 0) {
+                    timeLeft = -1; // Flag for "Infinite"
+                }
+
+                return { 
+                    ...job, 
+                    time: timeUsed, 
+                    time_limit_sec: timeLimitInSec, 
+                    time_left: timeLeft 
+                };
             });
             
+            // --- Calculate Summary Data ---
+            appState.pendingJobCount = appState.fullJobList.filter(j => j.job_state[0] === 'PENDING').length;
+            appState.uniqueUserCount = new Set(appState.fullJobList.map(j => j.user_name)).size;
+
+            const jobsPerUser = appState.fullJobList.reduce((acc, job) => {
+                acc[job.user_name] = (acc[job.user_name] || 0) + 1;
+                return acc;
+            }, {});
+            appState.userJobCounts = Object.entries(jobsPerUser).map(([user, count]) => ({ user, count }))
+                                          .sort((a, b) => b.count - a.count); // Sort descending
+            
+            // --- Call the single render function ---
             renderApp();
             
             statusContainer.textContent = `Data last updated: ${new Date().toLocaleTimeString()}`;
@@ -209,14 +277,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- EVENT LISTENERS ---
     
-    fetchData();
-    refreshButton.addEventListener('click', fetchData);
+    fetchData(); // Initial load
+    refreshButton.addEventListener('click', fetchData); // Refresh button
 
+    // Filter input (only calls render, not fetch)
     filterInput.addEventListener('input', (e) => {
         appState.filterText = e.target.value;
-        renderApp(); // Re-render with the new filter
+        renderApp();
     });
 
+    // Sort click (only calls render, not fetch)
     squeueContainer.addEventListener('click', (e) => {
         const header = e.target.closest('th');
         if (header && header.dataset.sortKey) {

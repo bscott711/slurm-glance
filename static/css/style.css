@@ -7,6 +7,11 @@ body {
 h1, h2 {
     color: #111;
 }
+h3 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    color: #333;
+}
 table {
     width: 100%;
     border-collapse: collapse;
@@ -14,7 +19,7 @@ table {
     background-color: white;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border-radius: 8px;
-    overflow: hidden;
+    /* overflow: hidden; -- This was the line causing scroll issues */
 }
 th, td {
     padding: 12px 15px;
@@ -75,23 +80,21 @@ tr:hover {
     transition: background-color 0.2s;
     margin-bottom: 2em;
 }
-
 .refresh-button:hover {
     background-color: #0056b3;
 }
-
 .refresh-button:disabled {
     background-color: #aaa;
     cursor: not-allowed;
 }
 
+/* --- Styles for Filter/Sort --- */
 .job-queue-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1em;
 }
-
 #filter-input {
     padding: 8px 12px;
     font-size: 0.9em;
@@ -99,15 +102,12 @@ tr:hover {
     border-radius: 6px;
     width: 300px;
 }
-
 #squeue-container th[data-sort-key] {
     cursor: pointer;
     user-select: none;
     position: relative;
-    padding-right: 20px; /* Space for the arrow */
+    padding-right: 20px;
 }
-
-/* Sorting arrows (default hidden) */
 #squeue-container th[data-sort-key]::after {
     content: '';
     position: absolute;
@@ -117,41 +117,71 @@ tr:hover {
     border: 4px solid transparent;
     opacity: 0.3;
 }
-
-/* Show arrow on hover */
 #squeue-container th[data-sort-key]:hover::after {
     opacity: 1;
 }
-
-/* Point-down arrow */
 #squeue-container th[data-sort-key][data-sort-dir="asc"]::after {
     border-top-color: #333;
     opacity: 1;
 }
-
-/* Point-up arrow */
 #squeue-container th[data-sort-key][data-sort-dir="desc"]::after {
     border-bottom-color: #333;
     opacity: 1;
 }
 
-/* --- New Styles for Fixed Table Layout --- */
+/* --- Styles for Fixed Table Layout --- */
 .job-table {
-    table-layout: fixed; /* This is the key fix */
+    table-layout: fixed;
     width: 100%;
 }
 
-/* Set default widths for each column */
-.job-table th:nth-child(1) { width: 10%; }  /* Job ID */
-.job-table th:nth-child(2) { width: 20%; } /* User */
-.job-table th:nth-child(3) { width: 10%; } /* State */
-.job-table th:nth-child(4) { width: 10%; } /* Partition */
-.job-table th:nth-child(5) { width: 35%; } /* Name */
-.job-table th:nth-child(6) { width: 15%; } /* Time */
+/* UPDATED column widths for 8 columns */
+.job-table th:nth-child(1) { width: 8%; }  /* Job ID */
+.job-table th:nth-child(2) { width: 15%; } /* User */
+.job-table th:nth-child(3) { width: 8%; }  /* State */
+.job-table th:nth-child(4) { width: 8%; }  /* Partition */
+.job-table th:nth-child(5) { width: 26%; } /* Name */
+.job-table th:nth-child(6) { width: 10%; } /* Time Used */
+.job-table th:nth-child(7) { width: 10%; } /* Time Limit */
+.job-table th:nth-child(8) { width: 15%; } /* Time Left */
 
-/* Ensure table cells don't overflow */
 .job-table td {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis; /* Adds "..." if content is too long */
+}
+
+/* --- NEW Styles for Summary --- */
+.summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1em;
+    margin-bottom: 1em;
+}
+.stat-card {
+    background-color: white;
+    padding: 1.5em;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.stat-card h3 {
+    margin: 0 0 0.5em 0;
+    font-size: 1.1em;
+    color: #555;
+}
+.stat-card .stat-value {
+    font-size: 2.5em;
+    font-weight: 600;
+    color: #007aff;
+}
+.user-job-table {
+    table-layout: fixed;
+    width: 100%;
+}
+.user-job-table th:nth-child(1) { width: 70%; }
+.user-job-table th:nth-child(2) { width: 30%; }
+.user-job-table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
