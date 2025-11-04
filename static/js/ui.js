@@ -34,7 +34,8 @@ export function renderQueueSummary(summaryData) {
 
     // 2. Render user table (Total)
     html += '<h3>Jobs Per User (All Partitions)</h3>';
-    html += '<table class="user-job-table"><thead><tr><th>User</th><th>Job Count</th></tr></thead><tbody>';
+    // Added a class to distinguish the "total" table from the partition tables
+    html += '<table class="user-job-table user-job-table-total"><thead><tr><th>User</th><th>Job Count</th></tr></thead><tbody>';
     
     if (userJobCounts.length === 0) {
          html += '<tr><td colspan="2" style="text-align: center; font-style: italic;">No users in queue.</td></tr>';
@@ -49,7 +50,6 @@ export function renderQueueSummary(summaryData) {
     // 3. NEW: Render per-partition user tables
     html += '<h3>Jobs Per User (By Partition)</h3>';
     
-    // Sort partitions by name for consistent order
     const sortedPartitions = Object.keys(userJobCountsByPartition).sort();
 
     if (sortedPartitions.length === 0) {
@@ -59,11 +59,18 @@ export function renderQueueSummary(summaryData) {
     for (const partition of sortedPartitions) {
         const userList = userJobCountsByPartition[partition];
         html += `<h4>Partition: ${partition}</h4>`;
-        html += '<table class="user-job-table"><thead><tr><th>User</th><th>Job Count</th></tr></thead><tbody>';
+        // Added a new class for the 4-column layout
+        html += '<table class="user-job-table user-job-table-partition"><thead><tr><th>User</th><th>Running</th><th>Pending</th><th>Total</th></tr></thead><tbody>';
         
         const topUsers = userList.slice(0, 10);
         for (const item of topUsers) {
-            html += `<tr><td>${item.user}</td><td>${item.count}</td></tr>`;
+            // New 4-column rows
+            html += `<tr>
+                        <td>${item.user}</td>
+                        <td>${item.running}</td>
+                        <td>${item.pending}</td>
+                        <td>${item.total}</td>
+                     </tr>`;
         }
         html += '</tbody></table>';
     }
@@ -76,16 +83,19 @@ export function renderSinfo(partitions) {
         sinfoContainer.innerHTML = "<p>No node information available.</p>";
         return;
     }
-    const headers = ['Partition', 'State', 'Node Count'];
-    let tableHtml = '<table><thead><tr>';
+    
+    const headers = ['Partition', 'State', 'Node Count', 'Nodelist'];
+    let tableHtml = '<table class="sinfo-table"><thead><tr>';
     headers.forEach(h => tableHtml += `<th>${h}</th>`);
     tableHtml += '</tr></thead><tbody>';
+    
     for (const group of partitions) {
         const part_name = group.partition.name;
-        // Use the new helper function to get the most important state
         const state = getPriorityNodeState(group.node.state);
         const count = group.nodes.total;
         
+        const nodelist = group.nodes.nodes.join(', '); 
+
         if (count === 0) continue;
         
         let stateHtml = state;
@@ -94,9 +104,14 @@ export function renderSinfo(partitions) {
         if (state.includes('MIXED')) stateHtml = `<span class="status-running">${state}</span>`;
         if (state.includes('DOWN')) stateHtml = `<span class="status-error">${state}</span>`;
         if (state.includes('DRAIN')) stateHtml = `<span class="status-error">${state}</span>`;
-        if (state.includes('RESV')) stateHtml = `<span class="status-pending">${state}</span>`;
+        if (state.includes('RESERVED')) stateHtml = `<span class="status-pending">${state}</span>`;
             
-        tableHtml += `<tr><td>${part_name}</td><td>${stateHtml}</td><td>${count}</td></tr>`;
+        tableHtml += `<tr>
+                        <td>${part_name}</td>
+                        <td>${stateHtml}</td>
+                        <td>${count}</td>
+                        <td><div class="nodelist-cell">${nodelist || '-'}</div></td>
+                      </tr>`;
     }
     tableHtml += '</tbody></table>';
     sinfoContainer.innerHTML = tableHtml;
@@ -108,17 +123,12 @@ export function renderSinfo(partitions) {
  */
 function getPriorityNodeState(stateArray) {
     const state = (stateArray[0] || "UNKNOWN").toUpperCase();
-    
-    // Define a priority order
-    const priorities = ["DOWN", "DRAIN", "RESV", "MIXED", "ALLOCATED"];
-
-    // Check for a higher-priority modifying state
+    const priorities = ["DOWN", "DRAIN", "RESERVED", "MIXED", "ALLOCATED"];
     for (const priorityState of priorities) {
         if (stateArray.includes(priorityState)) {
             return priorityState;
         }
     }
-    // Otherwise, return the base state
     return state;
 }
 

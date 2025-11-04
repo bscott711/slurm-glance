@@ -298,3 +298,36 @@ body:not([data-host]) {
     background-color: rgba(255, 255, 255, 0.2);
     border-color: rgba(255, 255, 255, 0.5);
 }
+
+/* --- New Styles for Node Summary Table --- */
+.sinfo-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+/* Set default widths for each column */
+.sinfo-table th:nth-child(1) { width: 25%; }  /* Partition */
+.sinfo-table th:nth-child(2) { width: 15%; }  /* State */
+.sinfo-table th:nth-child(3) { width: 15%; }  /* Node Count */
+.sinfo-table th:nth-child(4) { width: 45%; }  /* Nodelist */
+
+/* --- New Style for Nodelist Cell --- */
+.nodelist-cell {
+    max-height: 80px;  /* Or whatever height you prefer */
+    overflow-y: auto;  /* Add vertical scrollbar if needed */
+    overflow-x: hidden;
+    overflow-wrap: break-word;
+    padding-right: 5px;  /* Prevents scrollbar from overlapping text */
+}
+
+/* --- New Styles for Summary Tables --- */
+
+/* For the "Total" table (2 columns) */
+.user-job-table-total th:nth-child(1) { width: 70%; }
+.user-job-table-total th:nth-child(2) { width: 30%; }
+
+/* For the new "Per Partition" tables (4 columns) */
+.user-job-table-partition th:nth-child(1) { width: 40%; } /* User */
+.user-job-table-partition th:nth-child(2) { width: 20%; } /* Running */
+.user-job-table-partition th:nth-child(3) { width: 20%; } /* Pending */
+.user-job-table-partition th:nth-child(4) { width: 20%; } /* Total */

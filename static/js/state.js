@@ -14,11 +14,11 @@ let _state = {
     fullPartitionList: [],
     
     // Summary data
-    runningJobCount: 0, // NEW
+    runningJobCount: 0,
     pendingJobCount: 0,
     uniqueUserCount: 0,
-    userJobCounts: [], // This is now the "Total" list
-    userJobCountsByPartition: {} // NEW
+    userJobCounts: [], // This is the "Total" list
+    userJobCountsByPartition: {}
 };
 
 /**
@@ -61,7 +61,7 @@ export function setData(data) {
     });
     
     // --- Calculate Summary Data ---
-    _state.runningJobCount = _state.fullJobList.filter(j => j.job_state[0] === 'RUNNING').length; // NEW
+    _state.runningJobCount = _state.fullJobList.filter(j => j.job_state[0] === 'RUNNING').length;
     _state.pendingJobCount = _state.fullJobList.filter(j => j.job_state[0] === 'PENDING').length;
     _state.uniqueUserCount = new Set(_state.fullJobList.map(j => j.user_name)).size;
 
@@ -76,18 +76,36 @@ export function setData(data) {
     // --- NEW: Calculate Top Users (By Partition) ---
     const jobsByPartition = _state.fullJobList.reduce((acc, job) => {
         const part = job.partition || 'unknown';
+        const user = job.user_name;
+        const jobState = job.job_state[0] || 'UNKNOWN';
+
         if (!acc[part]) {
             acc[part] = {};
         }
-        acc[part][job.user_name] = (acc[part][job.user_name] || 0) + 1;
+        if (!acc[part][user]) {
+            acc[part][user] = { running: 0, pending: 0, total: 0 };
+        }
+
+        if (jobState === 'RUNNING') {
+            acc[part][user].running++;
+        } else if (jobState === 'PENDING') {
+            acc[part][user].pending++;
+        }
+        acc[part][user].total++;
+        
         return acc;
     }, {});
     
     _state.userJobCountsByPartition = {};
     for (const partition in jobsByPartition) {
         _state.userJobCountsByPartition[partition] = Object.entries(jobsByPartition[partition])
-            .map(([user, count]) => ({ user, count }))
-            .sort((a, b) => b.count - a.count); // Sort descending
+            .map(([user, counts]) => ({ 
+                user: user, 
+                running: counts.running,
+                pending: counts.pending,
+                total: counts.total
+            }))
+            .sort((a, b) => b.total - a.total); // Sort by total
     }
 }
 
@@ -95,11 +113,11 @@ export function setData(data) {
 export const getState = () => _state;
 export const getPartitionList = () => _state.fullPartitionList;
 export const getSummaryData = () => ({
-    runningJobCount: _state.runningJobCount, // NEW
+    runningJobCount: _state.runningJobCount,
     pendingJobCount: _state.pendingJobCount,
     uniqueUserCount: _state.uniqueUserCount,
     userJobCounts: _state.userJobCounts,
-    userJobCountsByPartition: _state.userJobCountsByPartition // NEW
+    userJobCountsByPartition: _state.userJobCountsByPartition
 });
 
 /**
