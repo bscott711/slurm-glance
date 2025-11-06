@@ -300,16 +300,22 @@ body:not([data-host]) {
 }
 
 /* --- New Styles for Node Summary Table --- */
+/* Find and REPLACE this block (which sets widths for sinfo-table): */
+
 .sinfo-table {
     table-layout: fixed;
     width: 100%;
 }
 
-/* Set default widths for each column */
-.sinfo-table th:nth-child(1) { width: 25%; }  /* Partition */
-.sinfo-table th:nth-child(2) { width: 15%; }  /* State */
-.sinfo-table th:nth-child(3) { width: 15%; }  /* Node Count */
-.sinfo-table th:nth-child(4) { width: 45%; }  /* Nodelist */
+/* Set default widths for each column for the per-node detail view (6 columns) */
+.sinfo-table th:nth-child(1) { width: 15%; } /* Node */
+.sinfo-table th:nth-child(2) { width: 15%; } /* Partition */
+.sinfo-table th:nth-child(3) { width: 12%; } /* State */
+.sinfo-table th:nth-child(4) { width: 18%; } /* CPUs (Free/Total) */
+.sinfo-table th:nth-child(5) { width: 18%; } /* Memory (Free/Total GB) */
+.sinfo-table th:nth-child(6) { width: 10%; } /* GPUs */
+
+/* The general table td styles will now apply to this table */
 
 /* --- New Style for Nodelist Cell --- */
 .nodelist-cell {

@@ -24,3 +24,16 @@ export function formatTime(totalSeconds) {
     }
     return timeString;
 }
+
+export function getGresCount(gresTotal, resource = 'gpu') {
+    if (!gresTotal) return 0;
+    const parts = gresTotal.split(',');
+    for (const part of parts) {
+        if (part.includes(resource)) {
+            // Part will be like 'gpu:2'
+            const count = part.split(':')[1];
+            return parseInt(count, 10) || 0;
+        }
+    }
+    return 0;
+}

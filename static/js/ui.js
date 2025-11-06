@@ -4,7 +4,7 @@
  * Reads from state, but does not write to it.
  */
 
-import { formatTime } from './utils.js';
+import { formatTime, getGresCount } from './utils.js';
 
 // --- Get Elements ---
 const squeueContainer = document.getElementById('squeue-container');
@@ -84,34 +84,74 @@ export function renderSinfo(partitions) {
         return;
     }
     
-    const headers = ['Partition', 'State', 'Node Count', 'Nodelist'];
+    // UPDATED HEADERS for Per-Node View
+    const headers = ['Node', 'Partition', 'State', 'CPUs (Free/Total)', 'Memory (Free/Total GB)', 'GPUs'];
     let tableHtml = '<table class="sinfo-table"><thead><tr>';
     headers.forEach(h => tableHtml += `<th>${h}</th>`);
     tableHtml += '</tr></thead><tbody>';
     
+    // Loop through each partition/state group
     for (const group of partitions) {
+        
         const part_name = group.partition.name;
-        const state = getPriorityNodeState(group.node.state);
-        const count = group.nodes.total;
-        
-        const nodelist = group.nodes.nodes.join(', '); 
+        const group_state = getPriorityNodeState(group.node.state);
+        const group_count = group.nodes.total;
 
-        if (count === 0) continue;
+        if (group_count === 0) continue;
+
+        // --- Calculate Per-Node Resources ---
         
-        let stateHtml = state;
-        if (state.includes('IDLE')) stateHtml = `<span class="status-pending">${state}</span>`;
-        if (state.includes('ALLOCATED')) stateHtml = `<span class="status-running">${state}</span>`;
-        if (state.includes('MIXED')) stateHtml = `<span class="status-running">${state}</span>`;
-        if (state.includes('DOWN')) stateHtml = `<span class="status-error">${state}</span>`;
-        if (state.includes('DRAIN')) stateHtml = `<span class="status-error">${state}</span>`;
-        if (state.includes('RESERVED')) stateHtml = `<span class="status-pending">${state}</span>`;
+        // CPU Calculation
+        const total_cpus = group.cpus.total;
+        const per_node_cpus = Math.round(total_cpus / group_count);
+        let allocated_cpus_per_node = 0;
+        
+        // Memory Calculation
+        const total_mem_mb = group.memory.minimum;
+        const allocated_mem_mb = group.memory.allocated;
+        
+        const per_node_mem_total_gb = Math.round((total_mem_mb / group_count) / 1024);
+        let per_node_mem_allocated_gb = 0;
+        
+        // GPU Calculation
+        const total_gres = group.gres.total;
+        const per_node_gpu = Math.round(getGresCount(total_gres, 'gpu') / group_count);
+
+        // Only calculate allocated/free if the group state is not IDLE/RESERVED/DRAIN
+        if (group_state.includes('ALLOCATED') || group_state.includes('MIXED')) {
+            const total_allocated_cpus = group.cpus.allocated;
+            allocated_cpus_per_node = Math.round(total_allocated_cpus / group_count);
+
+            const total_allocated_mem = group.memory.allocated;
+            per_node_mem_allocated_gb = Math.round((total_allocated_mem / group_count) / 1024);
+        }
+        
+        // --- Calculate FREE values ---
+        const per_node_cpus_free = per_node_cpus - allocated_cpus_per_node;
+        const per_node_mem_free_gb = per_node_mem_total_gb - per_node_mem_allocated_gb;
+        
+        // --- Create a row for EACH node ---
+        const nodelist_array = group.nodes.nodes;
+        
+        for (const node of nodelist_array) {
             
-        tableHtml += `<tr>
-                        <td>${part_name}</td>
-                        <td>${stateHtml}</td>
-                        <td>${count}</td>
-                        <td><div class="nodelist-cell">${nodelist || '-'}</div></td>
-                      </tr>`;
+            let stateHtml = group_state;
+            if (group_state.includes('IDLE')) stateHtml = `<span class="status-pending">${group_state}</span>`;
+            if (group_state.includes('ALLOCATED')) stateHtml = `<span class="status-running">${group_state}</span>`;
+            if (group_state.includes('MIXED')) stateHtml = `<span class="status-running">${group_state}</span>`;
+            if (group_state.includes('DOWN')) stateHtml = `<span class="status-error">${group_state}</span>`;
+            if (group_state.includes('DRAIN')) stateHtml = `<span class="status-error">${group_state}</span>`;
+            if (group_state.includes('RESERVED')) stateHtml = `<span class="status-pending">${group_state}</span>`;
+
+            tableHtml += `<tr>
+                <td>${node}</td>
+                <td>${part_name}</td>
+                <td>${stateHtml}</td>
+                <td>${per_node_cpus_free}/${per_node_cpus}</td>
+                <td>${per_node_mem_free_gb}/${per_node_mem_total_gb} GB</td>
+                <td>${per_node_gpu}</td>
+            </tr>`;
+        }
     }
     tableHtml += '</tbody></table>';
     sinfoContainer.innerHTML = tableHtml;
