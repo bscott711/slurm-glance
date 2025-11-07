@@ -56,6 +56,10 @@ def data_endpoint(host_name):
     data = get_cluster_data(host_name)
     return jsonify(data)
 
+def main():
+    """Entry point for the 'slurpy' command."""
+    print("Starting Slurpy HPC Management Dashboard at http://127.0.0.1:5001")
+    app.run(debug=True, port=5001, host='127.0.0.1', use_reloader=False)
+
 if __name__ == '__main__':
-    print("Starting local dashboard server at http://127.0.0.1:5001")
-    app.run(debug=True, port=5001, host='127.0.0.1')
+    main()

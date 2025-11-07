@@ -25,15 +25,27 @@ export function formatTime(totalSeconds) {
     return timeString;
 }
 
-export function getGresCount(gresTotal, resource = 'gpu') {
-    if (!gresTotal) return 0;
-    const parts = gresTotal.split(',');
-    for (const part of parts) {
-        if (part.includes(resource)) {
-            // Part will be like 'gpu:2'
-            const count = part.split(':')[1];
-            return parseInt(count, 10) || 0;
+/**
+ * Extracts total and used GRES count for a resource (like 'gpu').
+ */
+export function getGresCount(groupGresTotal, groupGresUsed, resource = 'gpu') {
+    const defaultResult = { total: 0, used: 0 };
+    
+    // Function to extract count from a string (e.g., "gpu:2" -> 2)
+    const extractCount = (gresString) => {
+        if (!gresString) return 0;
+        const parts = gresString.split(',');
+        for (const part of parts) {
+            if (part.includes(resource)) {
+                const count = part.split(':')[1];
+                return parseInt(count, 10) || 0;
+            }
         }
-    }
-    return 0;
+        return 0;
+    };
+
+    return {
+        total: extractCount(groupGresTotal),
+        used: extractCount(groupGresUsed)
+    };
 }

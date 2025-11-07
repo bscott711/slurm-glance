@@ -85,7 +85,7 @@ export function renderSinfo(partitions) {
     }
     
     // UPDATED HEADERS for Per-Node View
-    const headers = ['Node', 'Partition', 'State', 'CPUs (Free/Total)', 'Memory (Free/Total GB)', 'GPUs'];
+    const headers = ['Node', 'Partition', 'State', 'CPUs (Free/Total)', 'Memory (Free/Total GB)', 'GPUs (Free/Total)'];
     let tableHtml = '<table class="sinfo-table"><thead><tr>';
     headers.forEach(h => tableHtml += `<th>${h}</th>`);
     tableHtml += '</tr></thead><tbody>';
@@ -113,22 +113,27 @@ export function renderSinfo(partitions) {
         const per_node_mem_total_gb = Math.round((total_mem_mb / group_count) / 1024);
         let per_node_mem_allocated_gb = 0;
         
-        // GPU Calculation
-        const total_gres = group.gres.total;
-        const per_node_gpu = Math.round(getGresCount(total_gres, 'gpu') / group_count);
-
-        // Only calculate allocated/free if the group state is not IDLE/RESERVED/DRAIN
+        // GPU Calculation (UPDATED)
+        const gresCounts = getGresCount(group.gres.total, group.gres.used);
+        const per_node_gpu_total = Math.round(gresCounts.total / group_count);
+        let per_node_gpu_allocated = 0;
+        
+        // Only calculate allocated/free if the group state indicates usage
         if (group_state.includes('ALLOCATED') || group_state.includes('MIXED')) {
             const total_allocated_cpus = group.cpus.allocated;
             allocated_cpus_per_node = Math.round(total_allocated_cpus / group_count);
 
             const total_allocated_mem = group.memory.allocated;
             per_node_mem_allocated_gb = Math.round((total_allocated_mem / group_count) / 1024);
+            
+            const total_allocated_gpu = gresCounts.used;
+            per_node_gpu_allocated = Math.round(total_allocated_gpu / group_count);
         }
         
         // --- Calculate FREE values ---
         const per_node_cpus_free = per_node_cpus - allocated_cpus_per_node;
         const per_node_mem_free_gb = per_node_mem_total_gb - per_node_mem_allocated_gb;
+        const per_node_gpu_free = per_node_gpu_total - per_node_gpu_allocated;
         
         // --- Create a row for EACH node ---
         const nodelist_array = group.nodes.nodes;
@@ -149,7 +154,7 @@ export function renderSinfo(partitions) {
                 <td>${stateHtml}</td>
                 <td>${per_node_cpus_free}/${per_node_cpus}</td>
                 <td>${per_node_mem_free_gb}/${per_node_mem_total_gb} GB</td>
-                <td>${per_node_gpu}</td>
+                <td>${per_node_gpu_free}/${per_node_gpu_total}</td>
             </tr>`;
         }
     }
@@ -214,7 +219,15 @@ export function renderSqueue(state) {
             tableHtml += `<td>${job.partition}</td>`;
             tableHtml += `<td>${job.name}</td>`;
             
-            tableHtml += `<td>${formatTime(job.time)}</td>`;
+            // --- THIS IS THE CHANGE ---
+            let timeHtml = formatTime(job.time);
+            if (jobState === 'PENDING') {
+                // Wrap "Time in Queue" in the pending status span
+                timeHtml = `<span class="status-pending">${timeHtml}</span>`;
+            }
+            tableHtml += `<td>${timeHtml}</td>`;
+            // --- END CHANGE ---
+
             tableHtml += `<td>${formatTime(job.time_limit_sec)}</td>`;
             tableHtml += `<td>${(jobState === 'RUNNING') ? formatTime(job.time_left) : '-'}</td>`;
             
