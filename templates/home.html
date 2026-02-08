@@ -3,24 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>slurm-glance: Select Host</title>
+    <title>Slurm Glance: Home</title>
     
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
-    
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <style>
+        .cluster-card {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: left;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        .cluster-card:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+        .cluster-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 10px;
+        }
+        .cluster-name {
+            font-size: 1.4em;
+            color: white;
+            font-weight: 600;
+        }
+        .host-alias {
+            font-family: monospace;
+            color: #aaa;
+            font-size: 0.9em;
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .action-row {
+            display: flex;
+            gap: 15px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 18px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95em;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .btn-general {
+            background-color: #007aff;
+            color: white;
+        }
+        .btn-general:hover {
+            background-color: #0056b3;
+        }
+        .btn-petakit {
+            background-color: transparent;
+            border-color: #555;
+            color: #ddd;
+        }
+        .btn-petakit:hover {
+            border-color: #00bcd4;
+            color: #00bcd4;
+            background-color: rgba(0, 188, 212, 0.1);
+        }
+    </style>
 </head>
 <body>
-    
-    <div class="home-container">
-        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Slurpy Logo" class="home-logo">
-        <h1>Slurpy</h1>
-        <h2>HPC Management Dashboard</h2>
-    
-        <ul class="host-list">
-            <li><a href="/dashboard/Discovery">🚀 Discovery</a></li>
-            <li><a href="/dashboard/Innovator">🧪 Innovator</a></li>
-        </ul>
-    </div>
+    <div class="home-container" style="max-width: 600px; width: 100%;">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" class="home-logo">
+        
+        <h1>slurm-glance</h1>
+        <h2 style="margin-bottom: 40px;">HPC Management Dashboard</h2>
 
+        <div class="cluster-card">
+            <div class="cluster-header">
+                <span class="cluster-name">Discovery</span>
+                <span class="host-alias">discovery001</span>
+            </div>
+            <div class="action-row">
+                <a href="/dashboard/discovery001" class="btn btn-general">📊 General Dashboard</a>
+                <a href="/petakit/discovery001" class="btn btn-petakit">🧬 Petakit Worker</a>
+            </div>
+        </div>
+
+        <div class="cluster-card">
+            <div class="cluster-header">
+                <span class="cluster-name">Innovator</span>
+                <span class="host-alias">innovator</span>
+            </div>
+            <div class="action-row">
+                <a href="/dashboard/innovator" class="btn btn-general">📊 General Dashboard</a>
+            </div>
+        </div>
+
+    </div>
 </body>
-</html> 
+</html>
